@@ -274,6 +274,7 @@ defmodule Honeybadger do
     metadata = options[:metadata] || %{}
     stacktrace = options[:stacktrace] || []
     fingerprint = options[:fingerprint] || ""
+    environment_prefix = options[:environment_prefix] || ""
 
     # Grab process local breadcrumbs if not passed with call and add notice breadcrumb
     breadcrumbs =
@@ -290,7 +291,7 @@ defmodule Honeybadger do
 
     notice =
       exception
-      |> Notice.new(metadata_with_breadcrumbs, stacktrace, fingerprint)
+      |> Notice.new(metadata_with_breadcrumbs, stacktrace, fingerprint, environment_prefix)
       |> put_notice_fingerprint()
 
     exclude_error_value = Application.get_env(:honeybadger, :exclude_errors)

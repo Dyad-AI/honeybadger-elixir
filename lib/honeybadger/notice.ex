@@ -39,20 +39,26 @@ defmodule Honeybadger.Notice do
   @enforce_keys [:breadcrumbs, :notifier, :server, :error, :request]
   defstruct [:breadcrumbs, :notifier, :server, :error, :request]
 
-  @spec new(noticeable(), map(), list(), String.t()) :: t()
-  def new(error, metadata, stacktrace, fingerprint \\ "")
+  @spec new(noticeable(), map(), list(), String.t(), String.t()) :: t()
+  def new(error, metadata, stacktrace, fingerprint \\ "", environment_prefix \\ "")
 
-  def new(message, metadata, stacktrace, fingerprint)
+  def new(message, metadata, stacktrace, fingerprint, environment_prefix)
       when is_binary(message) and is_map(metadata) and is_list(stacktrace) do
-    new(%RuntimeError{message: message}, metadata, stacktrace, fingerprint)
+    new(%RuntimeError{message: message}, metadata, stacktrace, fingerprint, environment_prefix)
   end
 
-  def new(%{class: exception_name, message: message}, metadata, stacktrace, fingerprint)
+  def new(
+        %{class: exception_name, message: message},
+        metadata,
+        stacktrace,
+        fingerprint,
+        environment_prefix
+      )
       when is_map(metadata) and is_list(stacktrace) do
-    new(exception_name, message, metadata, stacktrace, fingerprint)
+    new(exception_name, message, metadata, stacktrace, fingerprint, environment_prefix)
   end
 
-  def new(exception, metadata, stacktrace, fingerprint)
+  def new(exception, metadata, stacktrace, fingerprint, environment_prefix)
       when is_map(metadata) and is_list(stacktrace) do
     {exception, _stacktrace} = Exception.blame(:error, exception, stacktrace)
 
@@ -61,11 +67,11 @@ defmodule Honeybadger.Notice do
     class = Utils.module_to_string(exception_mod)
     message = exception_mod.message(exception)
 
-    new(class, message, metadata, stacktrace, fingerprint)
+    new(class, message, metadata, stacktrace, fingerprint, environment_prefix)
   end
 
   # bundles exception (or pseudo exception) information in to notice
-  defp new(class, message, metadata, stacktrace, fingerprint) do
+  defp new(class, message, metadata, stacktrace, fingerprint, environment_prefix) do
     message = if message, do: IO.iodata_to_binary(message), else: nil
 
     error = %{
@@ -86,7 +92,7 @@ defmodule Honeybadger.Notice do
       error: error,
       request: request,
       notifier: @notifier,
-      server: server()
+      server: server(environment_prefix)
     })
   end
 
@@ -97,9 +103,9 @@ defmodule Honeybadger.Notice do
     end
   end
 
-  defp server do
+  defp server(environment_prefix) do
     %{
-      environment_name: Honeybadger.get_env(:environment_name),
+      environment_name: "#{environment_prefix}#{Honeybadger.get_env(:environment_name)}",
       hostname: Honeybadger.get_env(:hostname),
       project_root: Honeybadger.get_env(:project_root),
       revision: Honeybadger.get_env(:revision)
